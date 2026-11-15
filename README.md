@@ -10,10 +10,29 @@ During a large disaster everyone calls 999 at once. Siaga 999 lets the 999 call-
 - **Each department acts only on its own work**: agencies accept jobs and dispatch their own units (AI recommends the nearest one)
 - Real road routes and driving ETA (OSRM), address lookup (OpenStreetMap Nominatim), OpenStreetMap / CARTO map tiles
 
-![Uploading image.png…]()
-![KKM watching a live call](docs/kkm-live-call.png)
+## Screenshots
 
-## Run it (Deployed link: https://qyannnnn.github.io/kiro123/)
+These screenshots show how 999 MECC operators monitor incidents, follow a live call transcript and review case details, and how KKM reviews an ambulance dispatch recommendation.
+
+### 999 MECC dashboard
+
+![999 MECC dashboard with the shared incident map and open cases](docs/mecc-dashboard.png)
+
+### Live call transcript
+
+![Live call transcript with speaker labels and an AI triage summary](docs/mecc-live-transcript.png)
+
+### Case details
+
+![Case details displayed alongside the map and live call](docs/mecc-case-details.png)
+
+### KKM ambulance dispatch
+
+![KKM ambulance dispatch recommendation with the nearest unit and estimated arrival time](docs/kkm-dispatch.png)
+
+## Run it
+
+[Open the live Siaga 999 demo](https://qyannnnn.github.io/kiro123/).
 
 It's a single static file, so there's nothing to install.
 
