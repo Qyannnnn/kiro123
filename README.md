@@ -13,15 +13,14 @@ During a large disaster everyone calls 999 at once. Siaga 999 lets the 999 call-
 ![Case details](docs/case-details.png)
 ![KKM watching a live call](docs/kkm-live-call.png)
 
-## Run it
+## Run it (Deployed link: https://qyannnnn.github.io/kiro123/)
 
 It's a single static file, so there's nothing to install.
 
 ```bash
 python -m http.server 8000
 # open http://localhost:8000 in Chrome or Edge
-```deploy link
-https://qyannnnn.github.io/kiro123/
+```
 
 Open several tabs and use **Switch account** in each one (999 MECC, KKM, Bomba, APM, PDRM, Command). The tabs stay in sync.
 
