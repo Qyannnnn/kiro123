@@ -18,9 +18,7 @@ These screenshots show how 999 MECC operators monitor incidents, follow a live c
 
 ![999 MECC dashboard with the shared incident map and open cases](docs/mecc-dashboard.png)
 
-### Live call transcript
 
-![Live call transcript with speaker labels and an AI triage summary](docs/mecc-live-transcript.png)
 
 ### Case details
 
