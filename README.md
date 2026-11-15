@@ -1,6 +1,6 @@
 # Siaga 999 · Multi-agency disaster response
 
-Hackathon prototype for the **Disaster Recovery** track (Sunway University, Nov 2026).
+Hackathon prototype developed for the Disaster Recovery track at STC x Kiro Mini Hackathon 2026, held at Sunway University in November 2026.
 
 During a large disaster everyone calls 999 at once. Siaga 999 lets the 999 call-taker, KKM ambulance, Bomba, APM, PDRM and the State Disaster Command (JPBN) work from **one shared live picture**:
 
