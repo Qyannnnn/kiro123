@@ -1,4 +1,4 @@
-# Siaga 999 · Multi-agency disaster response
+# Siaga 999 · Multi-agency disaster responses
 
 Hackathon prototype developed for the Disaster Recovery track at STC x Kiro Mini Hackathon 2026, held at Sunway University in November 2026.
 
