@@ -10,7 +10,7 @@ During a large disaster everyone calls 999 at once. Siaga 999 lets the 999 call-
 - **Each department acts only on its own work**: agencies accept jobs and dispatch their own units (AI recommends the nearest one)
 - Real road routes and driving ETA (OSRM), address lookup (OpenStreetMap Nominatim), OpenStreetMap / CARTO map tiles
 
-![Case details](docs/case-details.png)
+![Uploading image.png…]()
 ![KKM watching a live call](docs/kkm-live-call.png)
 
 ## Run it (Deployed link: https://qyannnnn.github.io/kiro123/)
