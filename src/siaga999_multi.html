@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Siaga 999 · Multi-agency disaster response</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{
+  --bg:#efeff2; --panel:#fff; --soft:#f6f6f8; --line:#ececf1; --text:#1d1f2c; --muted:#8b8fa6;
+  --red:#e5322d; --p1:#e5322d; --p1s:#fdeceb; --p2:#f97316; --p2s:#fff0e6; --p3:#f5b301; --p3s:#fff6d6; --p4:#9aa0ae; --p4s:#eef0f3;
+  --role:#e5322d;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:"Plus Jakarta Sans",system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+button,input,select,textarea{font-family:inherit}
+button{cursor:pointer;border:none}
+button:disabled{opacity:.45;cursor:not-allowed}
+.hidden{display:none!important}
+
+/* ---------- Login ---------- */
+.login{min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 20% 10%,#fde3e1,transparent 40%),var(--bg)}
+.login-card{background:#fff;border-radius:28px;padding:32px;max-width:980px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.08)}
+.login-top{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+.logo-mark{width:44px;height:44px;border-radius:13px;background:var(--red);color:#fff;display:grid;place-items:center;font-size:14px;font-weight:800}
+.login h1{font-size:26px;font-weight:800}
+.login p{color:var(--muted)}
+.roles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:22px 0}
+.role{border:2px solid var(--line);border-radius:18px;padding:16px;text-align:left;background:#fff;display:flex;gap:12px;align-items:flex-start;transition:.15s}
+.role:hover{border-color:#d6d6de}
+.role.on{border-color:var(--c);box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 15%,transparent)}
+.role .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:22px;flex-shrink:0;background:color-mix(in srgb,var(--c) 12%,#fff)}
+.role b{display:block;font-size:14.5px}
+.role small{display:block;color:var(--muted);font-size:12px;line-height:1.4;margin-top:3px}
+.role .perm{display:inline-block;margin-top:6px;font-size:10.5px;font-weight:800;color:var(--c);background:color-mix(in srgb,var(--c) 10%,#fff);padding:2px 7px;border-radius:6px}
+.signin{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.signin input{border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px;width:200px}
+.btn{padding:11px 16px;border-radius:12px;font-weight:700;font-size:13px;background:var(--soft);color:var(--text)}
+.btn.red{background:var(--red);color:#fff}
+.btn.role-c{background:var(--role);color:#fff}
+.btn.big{width:100%;padding:13px;font-size:14px}
+.btn.green{background:#e8f7ee;color:#1e8a52}
+.login .hint{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.6}
+
+/* ---------- App shell ---------- */
+.app{height:100vh;display:grid;grid-template-rows:auto auto auto 1fr;gap:12px;padding:14px}
+.top{display:flex;align-items:center;gap:14px;background:var(--panel);border-radius:18px;padding:10px 14px;border-top:4px solid var(--role)}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}
+.logo .logo-mark{width:38px;height:38px;font-size:12px}
+.dept{display:flex;align-items:center;gap:8px;background:color-mix(in srgb,var(--role) 10%,#fff);color:var(--role);font-weight:800;font-size:12.5px;padding:8px 12px;border-radius:12px}
+.search{flex:1;max-width:340px;background:var(--soft);border:none;border-radius:12px;padding:11px 14px;font-size:13px;outline:none}
+.spacer{flex:1}
+.clock{text-align:right;line-height:1.2}.clock b{font-size:16px;font-weight:800}.clock small{display:block;font-size:11px;color:var(--muted)}
+.status-pill{display:flex;align-items:center;gap:7px;background:#e8f7ee;color:#1e8a52;font-weight:700;font-size:12px;padding:8px 12px;border-radius:20px}
+.status-pill.oncall{background:var(--p1s);color:var(--red)}
+.status-pill i{width:8px;height:8px;border-radius:50%;background:currentColor}
+.worker{display:flex;align-items:center;gap:10px;background:var(--soft);border-radius:14px;padding:6px 12px 6px 6px}
+.avatar{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:17px;background:color-mix(in srgb,var(--role) 14%,#fff)}
+.worker b{font-size:13px;display:block}.worker span{font-size:11px;color:var(--muted)}
+.iconbtn{position:relative;width:42px;height:42px;border-radius:12px;background:var(--soft);font-size:17px}
+.iconbtn .badge{position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:2px 6px;border:2px solid #fff}
+.notif-dd{position:absolute;top:52px;right:0;width:380px;max-height:60vh;overflow:auto;background:#fff;border-radius:16px;box-shadow:0 16px 40px rgba(0,0,0,.14);padding:10px;z-index:3000;display:none}
+.notif-dd.show{display:block}
+.nitem{display:flex;gap:10px;padding:10px;border-radius:12px;font-size:12.5px;line-height:1.4}
+.nitem.unseen{background:var(--soft)}
+.nitem .bar{width:4px;border-radius:4px;flex-shrink:0}
+.nitem small{display:block;color:var(--muted);font-size:11px}
+
+.strip{display:flex;align-items:center;gap:12px;background:var(--red);color:#fff;border-radius:14px;padding:10px 16px;font-size:13px}
+.strip.calm{background:#2a2c38}
+.strip .tag{background:rgba(255,255,255,.2);font-weight:800;font-size:11px;padding:3px 8px;border-radius:7px}
+.strip .msg{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.strip button{background:#fff;color:var(--red);font-weight:700;font-size:12px;padding:6px 12px;border-radius:9px}
+.strip.calm button{color:#2a2c38}
+.strip .ghost,.strip.calm .ghost{background:rgba(255,255,255,.15);color:#fff}
+
+.status{display:grid;grid-template-columns:repeat(4,150px) 1fr;gap:12px}
+.kpi{background:var(--panel);border-radius:16px;padding:12px 14px}
+.kpi span{font-size:11.5px;color:var(--muted);font-weight:600}
+.kpi b{display:block;font-size:24px;font-weight:800;margin-top:2px}
+.kpi.hot{background:var(--red);color:#fff}.kpi.hot span{color:rgba(255,255,255,.85)}
+.chips{display:flex;gap:10px;overflow-x:auto;background:var(--panel);border-radius:16px;padding:10px}
+.ichip{flex:0 0 auto;min-width:200px;border-radius:12px;padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:10px}
+.ichip .n{font-size:20px;font-weight:800}
+.ichip b{font-size:12.5px;display:block;white-space:nowrap}
+.ichip small{font-size:11px;opacity:.85}
+.ichip.P1{background:var(--p1);color:#fff}.ichip.P2{background:var(--p2s);color:#9a3c00}.ichip.P3{background:var(--p3s);color:#7a5a00}.ichip.P4{background:var(--p4s)}
+
+.body{display:grid;grid-template-columns:1fr 440px;gap:12px;min-height:0}
+.mapwrap{position:relative;background:var(--panel);border-radius:20px;padding:10px;min-height:0}
+#map{height:100%;border-radius:14px;z-index:0;background:#eef0f5}
+#map.offline{background:var(--offline-map,#eef0f5) center/cover!important}
+#map.offline .leaflet-tile{visibility:hidden}
+.mapfilters{position:absolute;top:22px;left:66px;z-index:500;display:flex;gap:6px;background:#fff;border-radius:14px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.1)}
+.fchip{background:var(--soft);border-radius:10px;padding:7px 11px;font-size:12px;font-weight:700;color:var(--muted)}
+.fchip.on{background:var(--text);color:#fff}
+.legend{position:absolute;left:22px;bottom:22px;z-index:500;background:#fff;border-radius:12px;padding:8px 12px;display:flex;gap:12px;font-size:11.5px;font-weight:600;color:var(--muted);box-shadow:0 6px 18px rgba(0,0,0,.1)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.livebadge{position:absolute;top:22px;right:22px;z-index:500;background:#fff;border-radius:12px;padding:8px 12px;font-size:12px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.1);display:flex;align-items:center;gap:8px}
+.livebadge i{width:8px;height:8px;border-radius:50%;background:#1e8a52;animation:blink 1.2s infinite}
+.pin{width:34px;height:34px;border-radius:50%;color:#fff;font-weight:800;font-size:12px;display:grid;place-items:center;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.25);font-family:"Plus Jakarta Sans",sans-serif}
+.unit{width:30px;height:30px;border-radius:9px;background:#fff;display:grid;place-items:center;font-size:15px;box-shadow:0 3px 10px rgba(0,0,0,.25);border:2px solid #1e8a52}
+.unit.enroute{border-color:#f97316;border-width:3px;animation:upulse 1s infinite}
+.unit.onscene{border-color:#e5322d;border-width:3px}
+.unit.mine{outline:3px solid var(--role);outline-offset:2px}
+@keyframes upulse{50%{box-shadow:0 0 0 7px rgba(249,115,22,.25)}}
+.leaflet-tooltip.eta-tip{background:#1d1f2c;color:#fff;border:none;font-weight:800;font-size:11px;padding:3px 7px;border-radius:7px;box-shadow:none}
+.leaflet-tooltip.eta-tip:before{border-top-color:#1d1f2c}
+
+.drawer{position:absolute;top:20px;right:20px;bottom:20px;width:360px;background:#fff;border-radius:18px;box-shadow:0 16px 40px rgba(0,0,0,.16);z-index:600;padding:18px;overflow:auto;display:none}
+.drawer.show{display:block;animation:in .25s ease}
+@keyframes in{from{opacity:0;transform:translateY(-6px)}to{opacity:1}}
+.drawer .x{position:absolute;top:12px;right:14px;background:none;font-size:20px;color:var(--muted)}
+.drawer h3{font-size:17px;font-weight:800;margin:8px 0 2px;padding-right:20px;line-height:1.3}
+.drawer .sub{font-size:12px;color:var(--muted);margin-bottom:12px}
+.box{background:var(--soft);border-radius:14px;padding:12px;margin-bottom:12px}
+.box h4{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.field{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.field:last-child{border:none}.field span{color:var(--muted)}.field b{text-align:right}
+.arow{display:flex;align-items:center;gap:10px;padding:9px;border-radius:12px;background:#fff;margin-bottom:6px;font-size:12.5px;flex-wrap:wrap}
+.arow .ic{font-size:18px}
+.arow b{display:block}.arow small{color:var(--muted)}
+.arow .act{margin-left:auto;display:flex;gap:6px}
+.arow select{border:1px solid var(--line);border-radius:9px;padding:6px;font-size:12px;max-width:170px}
+.mini{font-size:11.5px;font-weight:700;padding:7px 10px;border-radius:9px}
+.lock{font-size:11px;color:var(--muted);font-weight:600}
+
+.right{background:var(--panel);border-radius:20px;display:flex;flex-direction:column;min-height:0}
+.tabs{display:flex;gap:6px;padding:12px;border-bottom:1px solid var(--line)}
+.tab{flex:1;padding:10px;border-radius:12px;font-weight:700;font-size:13px;background:var(--soft);color:var(--muted)}
+.tab.on{background:var(--role);color:#fff}
+.tab .live{display:inline-block;width:8px;height:8px;border-radius:50%;background:#fff;margin-right:6px;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.25}}
+.pane{flex:1;overflow:auto;padding:12px}
+.qtools{display:flex;gap:6px;margin-bottom:10px}
+.qtools .btn{flex:1}
+.qcard{background:#fff;border:1px solid var(--line);border-left:5px solid;border-radius:14px;padding:12px;margin-bottom:10px;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.qcard:hover{box-shadow:0 6px 18px rgba(0,0,0,.06)}
+.qcard.done{opacity:.5}
+.qtop{display:flex;align-items:center;gap:8px}
+.pri{font-size:11px;font-weight:800;padding:3px 8px;border-radius:7px;white-space:nowrap}
+.pri.P1{background:var(--p1s);color:var(--p1)}.pri.P2{background:var(--p2s);color:var(--p2)}.pri.P3{background:var(--p3s);color:#b58300}.pri.P4{background:var(--p4s);color:#6b7080}
+.wait{margin-left:auto;font-size:11px;font-weight:700;color:var(--muted)}
+.wait.late{color:#fff;background:var(--red);padding:2px 7px;border-radius:7px}
+.qcard .reason{font-weight:700;font-size:13px}
+.qcard .meta{font-size:11.5px;color:var(--muted)}
+.dchips{display:flex;gap:5px;flex-wrap:wrap}
+.dchip{font-size:10.5px;padding:3px 7px;border-radius:6px;font-weight:700;background:#f1f1f4;color:#3a3d4d}
+.dchip.requested{background:#fff6d6;color:#8a6500}
+.dchip.enroute{background:#fff0e6;color:#c2410c}
+.dchip.onscene{background:#fdeceb;color:#e5322d}
+.dchip.done{background:#e8f7ee;color:#1e8a52}
+.dchip.mine{box-shadow:inset 0 0 0 2px var(--role)}
+.section{font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:6px 2px 10px}
+.empty{text-align:center;color:var(--muted);padding:26px 10px;font-size:13px}
+
+.callhead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.callhead .ph{width:40px;height:40px;border-radius:12px;background:var(--p1s);display:grid;place-items:center;font-size:18px}
+.callhead b{display:block}.callhead small{color:var(--muted);font-size:12px}
+.callhead .timer{margin-left:auto;font-weight:800;color:var(--red)}
+.transcript{font-size:13px;line-height:1.55;white-space:pre-wrap;min-height:60px}
+.caret{display:inline-block;width:2px;height:14px;background:var(--red);vertical-align:middle;animation:blink 1s infinite}
+.form label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin:10px 0 5px;text-transform:uppercase;letter-spacing:.04em}
+.form input,.form select,.form textarea{width:100%;border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 10px;font-size:13px;outline:none}
+.form textarea{resize:vertical;min-height:54px}
+.form .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.aibadge{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;color:#7a3ef0;background:#f1eaff;padding:3px 8px;border-radius:7px}
+.override{font-size:11.5px;font-weight:700;color:var(--red);margin-top:8px}
+.checks{display:flex;flex-wrap:wrap;gap:6px}
+.checks label{display:flex;align-items:center;gap:6px;margin:0;background:#fff;border:1px solid var(--line);padding:7px 10px;border-radius:10px;font-size:12px;color:var(--text);text-transform:none;letter-spacing:0;font-weight:600;cursor:pointer}
+.checks input{width:auto}
+.suggest{background:#e8f7ee;border-radius:12px;padding:10px;margin-top:10px;font-size:12px;line-height:1.6;color:#245c3e}
+.btnrow{display:flex;gap:8px;margin-top:14px}
+.btnrow .btn{flex:1}
+.urow{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:#fff;border:1px solid var(--line);margin-bottom:8px;font-size:12.5px}
+.urow .ic{font-size:18px}.urow b{display:block}.urow small{color:var(--muted)}
+.urow .st{margin-left:auto;font-weight:800;font-size:11.5px}
+.aibox{background:#f6f1ff;border:1.5px solid #e2d4ff;border-radius:14px;padding:12px;margin-top:4px;cursor:default}
+.aihead{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:#6d28d9;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.aihead .conf{margin-left:auto;text-transform:none;letter-spacing:0;background:#fff;border-radius:7px;padding:2px 7px;font-size:10.5px}
+.airow{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:5px 0;border-bottom:1px dashed #e2d4ff}
+.airow:last-of-type{border:none}.airow span{color:#7c6aa6}.airow b{text-align:right}
+.aibox .btnrow{margin-top:10px}
+.btn.ai{background:#6d28d9;color:#fff}
+.manual{margin-top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.manual select{flex:1;border:1px solid var(--line);border-radius:9px;padding:8px;font-size:12px}
+.by{font-size:10px;font-weight:800;padding:1px 6px;border-radius:5px;margin-left:4px}
+.by.ai{background:#efe7ff;color:#6d28d9}.by.manual{background:#f1f1f4;color:#3a3d4d}
+.swdd{position:absolute;top:52px;right:0;width:300px;background:#fff;border-radius:16px;box-shadow:0 16px 40px rgba(0,0,0,.14);padding:8px;z-index:3000;display:none}
+.swdd.show{display:block}
+.swdd button{display:flex;align-items:center;gap:10px;width:100%;background:none;padding:9px 10px;border-radius:10px;text-align:left;font-size:13px}
+.swdd button:hover{background:var(--soft)}
+.swdd button.cur{background:var(--soft);font-weight:800}
+.swdd button span.ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:16px}
+.swdd small{display:block;color:var(--muted);font-size:11px}
+.tx{font-size:12px;line-height:1.5;color:#3a3d4d;background:var(--soft);border-radius:10px;padding:8px 10px;font-style:italic;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.tx b{font-style:normal;font-size:10.5px;color:var(--muted);letter-spacing:.04em;margin-right:4px}
+.aisum{font-size:12px;line-height:1.5;background:#f6f1ff;color:#3b1d7a;border-radius:10px;padding:8px 10px}
+.aisum b{font-size:10.5px;color:#6d28d9;letter-spacing:.04em;margin-right:4px}
+.livecard{border:2px solid var(--red)!important;border-left:6px solid var(--red)!important;animation:lpulse 1.6s infinite;cursor:default}
+.livecard .tx{-webkit-line-clamp:unset;display:block;font-size:12.5px;max-height:130px;overflow:auto}
+@keyframes lpulse{0%,100%{box-shadow:0 0 0 0 rgba(229,50,45,.35)}50%{box-shadow:0 0 0 6px rgba(229,50,45,0)}}
+.livetag{background:var(--red);color:#fff;font-size:10.5px;font-weight:800;padding:3px 8px;border-radius:7px;display:inline-flex;align-items:center;gap:5px}
+.livetag i{width:7px;height:7px;border-radius:50%;background:#fff;animation:blink 1s infinite}
+.dlg{display:flex;flex-direction:column;gap:6px;max-height:300px;overflow:auto;padding:2px}
+.ln{max-width:90%;padding:7px 11px;border-radius:12px;font-size:12.5px;line-height:1.45}
+.ln small{display:block;font-size:10px;font-weight:800;letter-spacing:.04em;opacity:.75;margin-bottom:1px;text-transform:uppercase}
+.ln.caller{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
+.ln.agent{align-self:flex-end;background:#fdeceb;color:#7a1b17;border-bottom-right-radius:4px}
+.ln.partial{opacity:.7}
+.who{display:flex;gap:6px;margin:8px 0 0}
+.who button{flex:1;padding:8px;border-radius:10px;font-weight:700;font-size:12px;background:#fff;border:1px solid var(--line);color:var(--muted)}
+.who button.on{background:var(--text);color:#fff;border-color:var(--text)}
+.typeline{display:flex;gap:6px;margin-top:8px}
+.typeline input{flex:1;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12.5px;outline:none}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1d1f2c;color:#fff;padding:12px 18px;border-radius:14px;font-size:13px;z-index:4000;display:none;max-width:90vw}
+.toast.show{display:block;animation:in .25s ease}
+
+@media (max-width:1100px){
+  .app{height:auto}
+  .status{grid-template-columns:1fr 1fr}.chips{grid-column:1/-1}
+  .body{grid-template-columns:1fr}.mapwrap{height:60vh}
+  .search,.clock{display:none}
+  .drawer{width:auto;left:20px}
+  .roles{grid-template-columns:1fr}
+  .top{flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div class="login hidden" id="login">
+  <div class="login-card">
+    <div class="login-top"><div class="logo-mark">999</div><div><h1>Siaga 999</h1><p>Multi-agency disaster response · one shared live picture</p></div></div>
+    <div class="roles" id="roles"></div>
+    <div class="signin">
+      <input id="pin" type="password" placeholder="PIN" maxlength="6">
+      <button class="btn red" id="signinBtn" disabled>Sign in</button>
+      <span id="loginErr" style="color:var(--red);font-size:12.5px;font-weight:700"></span>
+      <span class="spacer"></span>
+      <button class="btn" onclick="if(confirm('Reset all demo data for every department?')){localStorage.removeItem(KEY);location.reload()}">Reset demo data</button>
+    </div>
+    <div class="hint">Demo PIN for every account: <b>1234</b>. Each browser tab keeps its own sign-in, so open one tab per department and they stay in sync live.<br>
+      Hackathon prototype, no backend: accounts and data are hardcoded and stored in this browser only. Not a certified emergency system.</div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div class="app hidden" id="app">
+  <header class="top">
+    <div class="logo"><div class="logo-mark">999</div>Siaga 999</div>
+    <div class="dept" id="deptBadge"></div>
+    <input class="search" id="search" placeholder="🔍  Search case, location, unit...">
+    <div class="spacer"></div>
+    <div class="clock"><b id="clock">--:--</b><small>Shift B · 08:00-16:00</small></div>
+    <div class="status-pill" id="opStatus"><i></i><span>Available</span></div>
+    <div class="worker"><div class="avatar" id="meAv"></div><div><b id="meName"></b><span id="meId"></span></div></div>
+    <div style="position:relative">
+      <button class="iconbtn" id="bellBtn">🔔<span class="badge" id="bellCount">0</span></button>
+      <div class="notif-dd" id="notifDD"></div>
+    </div>
+    <div style="position:relative">
+      <button class="btn" id="swBtn">⇄ Switch account ▾</button>
+      <div class="swdd" id="swDD"></div>
+    </div>
+  </header>
+
+  <div class="strip" id="strip"></div>
+
+  <div class="status">
+    <div class="kpi" id="k1"></div><div class="kpi hot" id="k2"></div><div class="kpi" id="k3"></div><div class="kpi" id="k4"></div>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <div class="body">
+    <div class="mapwrap">
+      <div id="map"></div>
+      <div class="mapfilters">
+        <button class="fchip on" data-f="ALL">All</button><button class="fchip" data-f="P1">P1</button>
+        <button class="fchip" data-f="P2">P2</button><button class="fchip" data-f="P3">P3</button>
+        <button class="fchip on" id="unitToggle">🚑 Units</button>
+        <button class="fchip hidden" id="mineToggle">Only ours</button>
+      </div>
+      <div class="livebadge"><i></i>Live · shared with all agencies</div>
+      <div class="legend"><span><i style="background:#e5322d"></i>Critical</span><span><i style="background:#f97316"></i>Serious</span><span><i style="background:#f5b301"></i>Moderate</span><span><i style="background:#9aa0ae"></i>Minor</span><span>Units: <b style="color:#1e8a52">free</b> · <b style="color:#f97316">en route</b> · <b style="color:#e5322d">on scene</b></span></div>
+      <div class="drawer" id="drawer"></div>
+    </div>
+    <aside class="right">
+      <div class="tabs" id="tabs"></div>
+      <div class="pane" id="pane"></div>
+    </aside>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="triage_rules.js"></script>
+<script>
+/* =====================================================================
+   ACCOUNTS & PERMISSIONS (hardcoded, no backend)
+   ===================================================================== */
+const ACCOUNTS=[
+  {role:'MECC', name:'Nurul Aisyah', id:'OP-1027', dept:'999 MECC Selangor', short:'999 MECC', icon:'🎧', color:'#e5322d', perm:'Take calls · triage · send requests', desc:'Answers 999 calls and sends jobs to agencies'},
+  {role:'KKM',  name:'Dr. Hafiz Rahman', id:'KKM-4410', dept:'KKM Ambulance Command', short:'KKM Ambulance', icon:'🚑', color:'#2563eb', perm:'Dispatch ambulances only', desc:'Accepts medical jobs, sends ambulances'},
+  {role:'Bomba',name:'PgB Lim Wei Jie', id:'BBP-2231', dept:'Bomba (Fire & Rescue)', short:'Bomba', icon:'🚒', color:'#ea580c', perm:'Dispatch fire & rescue only', desc:'Accepts rescue and fire jobs, sends fire engines'},
+  {role:'APM',  name:'Kapt. Siti Norain', id:'APM-0918', dept:'APM Civil Defence', short:'APM', icon:'🛟', color:'#0f766e', perm:'Dispatch boats & evacuation only', desc:'Boats, evacuation and relief centres'},
+  {role:'PDRM', name:'Insp. Ravi Kumar', id:'PDRM-7702', dept:'PDRM Police', short:'PDRM', icon:'🚓', color:'#1e3a8a', perm:'Dispatch police only', desc:'Security, traffic and looting reports'},
+  {role:'CMD',  name:"Dato' Kamal Ismail", id:'JPBN-01', dept:'State Disaster Command (JPBN)', short:'Command', icon:'🏛', color:'#1d1f2c', perm:'View only', desc:'Sees everything live, cannot change data'}
+];
+const AGENCIES=['KKM','Bomba','APM','PDRM'];
+const AG_ICON={KKM:'🚑',Bomba:'🚒',APM:'🛟',PDRM:'🚓'};
+let me=null;
+const can={
+  takeCalls:()=>me.role==='MECC',
+  triage:()=>me.role==='MECC',
+  dispatch:a=>me.role===a,
+  isAgency:()=>AGENCIES.includes(me.role)
+};
+
+/* =====================================================================
+   SHARED STATE: localStorage + BroadcastChannel (all tabs see the same data)
+   ===================================================================== */
+const KEY='siaga999-multi-v1';
+const bc='BroadcastChannel' in window?new BroadcastChannel('siaga999-multi'):null;
+const PRI_ORDER={P1:1,P2:2,P3:3,P4:4};
+const PRI_HEX={P1:'#e5322d',P2:'#f97316',P3:'#f5b301',P4:'#9aa0ae'};
+const SEV={P1:'Critical',P2:'Serious',P3:'Moderate',P4:'Minor'};
+const ESCALATE_AT=30, MIN=60000;
+const DEMO_SPEED=3000;  // demo: 1 minute of real ETA plays as 3 seconds
+
+function seed(){
+  const now=Date.now();
+  const incidents=[
+    {id:'INC-003',name:'Taman Connaught flood',area:'Cheras',keywords:['connaught'],calls:29,priority:'P1',lat:3.0789,lng:101.7366},
+    {id:'INC-005',name:'Kg Baru landslip',area:'Kuala Lumpur',keywords:['kampung baru','kg baru'],calls:9,priority:'P1',lat:3.1663,lng:101.7017},
+    {id:'INC-004',name:'Sri Muda road flooded',area:'Shah Alam',keywords:['sri muda'],calls:6,priority:'P2',lat:3.0235,lng:101.5300},
+    {id:'INC-002',name:'Cheras power outage',area:'Cheras',keywords:['outage','blackout'],calls:14,priority:'P3',lat:3.1050,lng:101.7520}
+  ];
+  const off=[[.004,-.003],[-.003,.004],[.005,.005],[-.005,-.002],[.002,.006],[-.006,.003],[.006,-.005],[-.002,-.006]];
+  const calls=[
+    {id:1,mins:9,priority:'P1',reason:'Trapped on roof, water rising, child present',summary:'5 people. Hazards: Trapped, Water rising. Vulnerable: Child (3 years old).',location:'Jalan 5, Taman Connaught',incident:'INC-003',status:'sent',dispatch:{Bomba:{state:'requested'},APM:{state:'requested'}},caller:'012-334 xxxx',dialog:[{"who": "agent", "text": "999, what's your emergency?"}, {"who": "caller", "text": "Tolong! Kami atas bumbung, air dah sampai tingkat dua!"}, {"who": "agent", "text": "Where are you exactly?"}, {"who": "caller", "text": "Jalan 5, Taman Connaught."}, {"who": "agent", "text": "How many people are with you?"}, {"who": "caller", "text": "There are five of us. Ada budak tiga tahun dengan kami."}, {"who": "agent", "text": "Stay on the roof and keep the child with you. Help is being sent."}]},
+    {id:2,mins:6,priority:'P2',reason:'Elderly diabetic, no insulin since yesterday',summary:'1 person. Vulnerable: Elderly, Medical condition (insulin).',location:'Jalan 2, Taman Connaught',incident:'INC-003',status:'sent',dispatch:{KKM:{state:'requested'}},caller:'019-221 xxxx',dialog:[{"who": "agent", "text": "999, what's your emergency?"}, {"who": "caller", "text": "My mother is 78, she lives alone at Jalan 2 Taman Connaught. The ground floor is flooded."}, {"who": "agent", "text": "Is she injured?"}, {"who": "caller", "text": "No, but she is diabetic and has no insulin since yesterday."}, {"who": "agent", "text": "Okay. Keep her upstairs and dry. We are sending help."}]},
+    {id:3,mins:4,priority:'P2',reason:'Car stalled in floodwater, driver unhurt',summary:'Driver stuck in car, water at door level.',location:'Persiaran Sri Muda',incident:'INC-004',status:'sent',dispatch:{Bomba:{state:'requested'}},agencies:['Bomba'],caller:'011-876 xxxx',dialog:[{"who": "agent", "text": "999, what's your emergency?"}, {"who": "caller", "text": "My car stalled in the water at Persiaran Sri Muda."}, {"who": "agent", "text": "How high is the water? Are you hurt?"}, {"who": "caller", "text": "Water is at the door level. I'm okay, not injured, but I can't get out safely."}, {"who": "agent", "text": "Stay inside the car with your seatbelt off. Bomba is being informed."}]},
+    {id:4,mins:3,priority:'P3',reason:'Looting reported at flooded shops',summary:'People taking goods from empty shoplots.',location:'Jalan Cerdas, Taman Connaught',incident:'INC-003',status:'sent',dispatch:{PDRM:{state:'requested'}},caller:'016-554 xxxx',dialog:[{"who": "agent", "text": "999, what's your emergency?"}, {"who": "caller", "text": "I'm calling from Jalan Cerdas. Some people are taking things from the flooded shops."}, {"who": "agent", "text": "Is anyone in danger right now?"}, {"who": "caller", "text": "No, nobody is hurt. The shops are empty and nobody is guarding them."}, {"who": "agent", "text": "Thank you. Please stay away from them. Police will be informed."}]},
+    {id:5,mins:2,priority:'P3',reason:'Power out, residents safe',summary:'Whole street dark since 9am, no injuries.',location:'Jalan Cerdas, Cheras',incident:'INC-002',status:'sent',dispatch:{APM:{state:'requested'}},agencies:['APM'],caller:'012-908 xxxx',dialog:[{"who": "agent", "text": "999, what's your emergency?"}, {"who": "caller", "text": "Our whole street at Jalan Cerdas Cheras has no power since 9am."}, {"who": "agent", "text": "Is anyone hurt or in danger?"}, {"who": "caller", "text": "Everyone is safe, no injuries. Just asking when it will come back."}, {"who": "agent", "text": "Noted. Use torches, not candles. We will update you."}]},
+    {id:7,mins:14,priority:'P1',reason:'Two people buried after landslip',summary:'Wall collapsed onto house, 2 people trapped.',location:'Lorong Raja Muda, Kg Baru',incident:'INC-005',status:'sent',dispatch:{Bomba:{state:'onscene',unit:'BMB-11'},KKM:{state:'requested'}},caller:'013-662 xxxx',dialog:[{"who": "agent", "text": "999, what's your emergency?"}, {"who": "caller", "text": "Tolong! Tanah runtuh at Lorong Raja Muda, Kampung Baru!"}, {"who": "agent", "text": "Is anyone trapped?"}, {"who": "caller", "text": "The wall collapsed onto the house. Two people are trapped inside, we can hear them."}, {"who": "agent", "text": "Do not try to move the rubble. Rescue is on the way."}]},
+    {id:8,mins:18,priority:'P1',reason:'Bedridden patient, oxygen machine off',summary:'Home oxygen user, no power, cannot be carried down.',location:'Jalan 4, Taman Connaught',incident:'INC-003',status:'sent',dispatch:{KKM:{state:'onscene',unit:'AMB-07'},APM:{state:'requested'}},caller:'012-118 xxxx',dialog:[{"who": "agent", "text": "999, what's your emergency?"}, {"who": "caller", "text": "My father is bedridden and uses an oxygen machine."}, {"who": "agent", "text": "Where are you, and what happened?"}, {"who": "caller", "text": "Jalan 4 Taman Connaught. There is no power and the machine stopped. We cannot carry him down."}, {"who": "agent", "text": "Keep him sitting up and stay with him. We are sending help now."}]}
+  ];
+  calls.forEach((c,k)=>{const i=incidents.find(x=>x.id===c.incident);c.lat=i.lat+off[k%8][0];c.lng=i.lng+off[k%8][1];c.at=now-c.mins*MIN;delete c.mins;});
+  const U=(id,type,name,lat,lng,status='available')=>({id,type,icon:AG_ICON[type],name,lat,lng,status});
+  const units=[
+    U('AMB-12','KKM','Ambulance · Hosp. Canselor Tuanku Muhriz',3.0985,101.7254),
+    U('AMB-07','KKM','Ambulance · KK Cheras',3.0815,101.7395,'onscene'),
+    U('AMB-21','KKM','Ambulance · Hosp. Kuala Lumpur',3.1716,101.6990),
+    U('AMB-15','KKM','Ambulance · Hosp. Shah Alam',3.0710,101.4900),
+    U('BMB-03','Bomba','Fire engine · BBP Cheras',3.0660,101.7560),
+    U('BMB-11','Bomba','Rescue truck · BBP Hang Tuah',3.1640,101.7050,'onscene'),
+    U('BMB-20','Bomba','Fire engine · BBP Shah Alam',3.0450,101.5380),
+    U('APM-B2','APM','Boat team · APM Cheras',3.0900,101.7450),
+    U('APM-05','APM','Evacuation truck · APM Shah Alam',3.0730,101.5180),
+    U('PDRM-21','PDRM','Patrol car · IPD Cheras',3.1060,101.7470),
+    U('PDRM-08','PDRM','Patrol car · IPD Dang Wangi',3.1480,101.6960)
+  ];
+  const t=d=>new Date(now-d*MIN).toTimeString().slice(0,5);
+  const notifs=[
+    {id:1,t:t(40),sev:'P1',for:'all',text:'<b>APM-B2</b> boat team on standby at Taman Connaught'},
+    {id:2,t:t(20),sev:'P1',for:'all',text:'<b>BMB-11</b> on scene at Kg Baru landslip'},
+    {id:3,t:t(9),sev:'P1',for:['Bomba','APM'],text:'<b>New request</b>: Trapped on roof, Jalan 5 Taman Connaught (P1)'},
+    {id:4,t:t(6),sev:'P2',for:['KKM'],text:'<b>New request</b>: Elderly diabetic, no insulin (P2)'}
+  ];
+  return {incidents,calls,units,notifs,nextId:100,nextNotif:5};
+}
+function load(){try{return JSON.parse(localStorage.getItem(KEY));}catch(_){return null;}}
+let S=load()||seed();
+if(!load())localStorage.setItem(KEY,JSON.stringify(S));
+function persist(){localStorage.setItem(KEY,JSON.stringify(S));bc&&bc.postMessage('update');}
+/** Read latest shared state, apply change, save, broadcast, re-render. */
+function mutate(fn){S=load()||S;fn(S);persist();renderAll();refreshDrawer();}
+function onRemote(){const n=load();if(!n)return;S=n;if(me){renderAll();refreshDrawer();}}
+if(bc)bc.onmessage=onRemote;
+window.addEventListener('storage',e=>{if(e.key===KEY)onRemote();});
+
+/* =====================================================================
+   HELPERS
+   ===================================================================== */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hm=d=>new Date(d).toTimeString().slice(0,5);
+const km=(a,b,c,d)=>{const R=6371,r=Math.PI/180,x=(c-a)*r,y=(d-b)*r*Math.cos((a+c)/2*r);return Math.sqrt(x*x+y*y)*R;};
+const roughEta=k=>Math.max(3,Math.round(k*1.4/30*60)+2);  // flood traffic ~30 km/h, road factor 1.4, +2 min turnout
+function toast(m){$('toast').innerHTML=m;$('toast').classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>$('toast').classList.remove('show'),4000);}
+function addNotif(s,sev,text,forWho='all'){s.notifs.push({id:s.nextNotif++,t:hm(Date.now()),sev,text,for:forWho});}
+const forMe=n=>n.for==='all'||n.for.includes(me.role)||me.role==='CMD'||me.role==='MECC';
+const seenKey=()=>'siaga-seen-'+me.role;
+function seenSet(){try{return new Set(JSON.parse(localStorage.getItem(seenKey()))||[]);}catch(_){return new Set();}}
+
+/* unit position along its road path (every tab computes the same thing from shared data) */
+function unitPos(u){
+  if(u.status!=='enroute'||!u.job)return {lat:u.lat,lng:u.lng,k:1};
+  const k=Math.min(1,Math.max(0,(Date.now()-u.job.t0)/u.job.dur));
+  const p=u.job.path;
+  if(p.length<2)return {lat:p[0][0],lng:p[0][1],k};
+  const seg=[];let tot=0;
+  for(let i=1;i<p.length;i++){const d=km(p[i-1][0],p[i-1][1],p[i][0],p[i][1]);seg.push(d);tot+=d;}
+  let want=tot*k;
+  for(let i=0;i<seg.length;i++){
+    if(want<=seg[i]||i===seg.length-1){const f=seg[i]?Math.min(1,want/seg[i]):1;return {lat:p[i][0]+(p[i+1][0]-p[i][0])*f,lng:p[i][1]+(p[i+1][1]-p[i][1])*f,k,rest:p.slice(i+1)};}
+    want-=seg[i];
+  }
+  return {lat:p[p.length-1][0],lng:p[p.length-1][1],k};
+}
+const etaLeft=u=>u&&u.job?Math.max(0,Math.ceil((1-unitPos(u).k)*u.job.eta)):0;
+function nearest(lat,lng,type){
+  return S.units.filter(u=>u.status==='available'&&(!type||u.type===type))
+    .map(u=>({...u,d:km(lat,lng,u.lat,u.lng)})).sort((a,b)=>a.d-b.d).map(u=>({...u,eta:roughEta(u.d)}));
+}
+/* Real road route + driving time from OSRM (free, no key). Falls back to a straight line. */
+async function roadRoute(from,to){
+  try{
+    const ctl=new AbortController();setTimeout(()=>ctl.abort(),5000);
+    const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=simplified&geometries=geojson`,{signal:ctl.signal});
+    const j=await r.json();
+    if(j.routes&&j.routes[0]){
+      return {path:j.routes[0].geometry.coordinates.map(([x,y])=>[y,x]),eta:Math.max(2,Math.round(j.routes[0].duration/60*1.3)+2),src:'road'};
+    }
+  }catch(_){}
+  return {path:[from,to],eta:roughEta(km(from[0],from[1],to[0],to[1])),src:'estimate'};
+}
+
+/* =====================================================================
+   LOGIN
+   ===================================================================== */
+let pick=null;
+$('roles').innerHTML=ACCOUNTS.map(a=>`<button class="role" style="--c:${a.color}" data-r="${a.role}">
+  <div class="ic">${a.icon}</div><div><b>${a.dept}</b><small>${a.name} · ${a.id}</small><small>${a.desc}</small><span class="perm">${a.perm}</span></div></button>`).join('');
+document.querySelectorAll('.role').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.role').forEach(x=>x.classList.remove('on'));b.classList.add('on');pick=b.dataset.r;
+  $('signinBtn').disabled=false;$('signinBtn').style.background=ACCOUNTS.find(a=>a.role===pick).color;$('pin').focus();
+});
+$('signinBtn').onclick=signIn;$('pin').onkeydown=e=>{if(e.key==='Enter')signIn();};
+function signIn(){
+  if(!pick)return;
+  if($('pin').value!=='1234'){$('loginErr').textContent='Wrong PIN (demo PIN is 1234)';return;}
+  sessionStorage.setItem('siaga-role',pick);start(pick);
+}
+window.logout=()=>{sessionStorage.removeItem('siaga-role');location.reload();};
+/* Switch department instantly (demo: no PIN). Shared data is kept. */
+window.switchTo=r=>{if(onCall)cancelLive();sessionStorage.setItem('siaga-role',r);location.reload();};
+function renderSwitcher(){
+  $('swDD').innerHTML='<div style="font-size:11px;font-weight:800;color:var(--muted);padding:6px 10px">SWITCH DEPARTMENT</div>'+
+    ACCOUNTS.map(a=>`<button class="${a.role===me.role?'cur':''}" onclick="switchTo('${a.role}')"><span class="ic" style="background:color-mix(in srgb,${a.color} 14%,#fff)">${a.icon}</span><div>${esc(a.dept)}<small>${esc(a.name)} · ${esc(a.perm)}</small></div>${a.role===me.role?'<span style="margin-left:auto">✓</span>':''}</button>`).join('')+
+''+'<div style="font-size:11px;color:var(--muted);padding:8px 10px">No sign-in needed. Each tab can be a different department.</div>';
+}
+$('swBtn').onclick=e=>{e.stopPropagation();$('swDD').classList.toggle('show');$('notifDD').classList.remove('show');};
+document.addEventListener('click',e=>{if(!$('swDD').contains(e.target)&&e.target!==$('swBtn'))$('swDD').classList.remove('show');});
+
+function start(role){
+  me=ACCOUNTS.find(a=>a.role===role);
+  document.documentElement.style.setProperty('--role',me.color);
+  $('login').classList.add('hidden');$('app').classList.remove('hidden');
+  $('deptBadge').innerHTML=`${me.icon} ${esc(me.short)} · <span style="font-weight:600">${esc(me.perm)}</span>`;
+  $('meAv').textContent=me.icon;$('meName').textContent=me.name;$('meId').textContent=`ID ${me.id} · ${me.dept}`;
+  $('opStatus').classList.toggle('hidden',!can.takeCalls());
+  if(can.isAgency())$('mineToggle').classList.remove('hidden');
+  document.title=`${me.short} · Siaga 999`;
+  tab=can.takeCalls()?'queue':can.isAgency()?'jobs':'cases';
+  renderSwitcher();initMap();renderAll();
+}
+
+/* =====================================================================
+   AI TRIAGE (rule-based, same as Triage Line)
+   ===================================================================== */
+async function analyzeCall(text){
+  const {extract,scoreCase}=window.TriageRules;
+  const e=extract(text),sc=scoreCase(e,text),t=text.toLowerCase(),loc=(e.location||'').toLowerCase();
+  const inc=S.incidents.find(i=>i.keywords.some(k=>t.includes(k)||loc.includes(k)));
+  const ag=new Set();
+  if(e.injuries.length||e.vulnerable.includes('Medical condition')||e.hazards.some(h=>['Fire','Building collapse','Landslide'].includes(h)))ag.add('KKM');
+  if(e.hazards.some(h=>['Trapped','Fire','Landslide','Building collapse','Live wire','Water rising'].includes(h)))ag.add('Bomba');
+  if(e.hazards.some(h=>['Water rising','Flood'].includes(h)))ag.add('APM');
+  if(/loot|curi|rompak|fight|gaduh|steal/i.test(text))ag.add('PDRM');
+  if(!ag.size)ag.add('APM');
+  await new Promise(r=>setTimeout(r,400));
+  const summary=`${e.people?e.people+' people. ':''}${e.injuries.join(', ')||'No injuries reported'}.${e.hazards.length?' Hazards: '+e.hazards.join(', ')+'.':''}${e.vulnerable.length?' Vulnerable: '+e.vulnerable.join(', ')+'.':''}${e.needs.length?' '+e.needs.join(', ')+'.':''}`;
+  return {summary,location:e.location||'Unknown',injuries:e.injuries,hazards:e.hazards,vulnerable:e.vulnerable,
+    agencies:[...ag],priority:sc.level,reason:sc.reason,match:inc?inc.id:'new',overridden:sc.forced?`Keyword "${sc.forced}" forces P1`:null};
+}
+
+/* =====================================================================
+   RENDER: header, strip, KPIs
+   ===================================================================== */
+let tab='queue',filter='ALL',showUnits=true,onlyMine=false;
+function renderAll(){if(!me)return;renderNotifs();renderStatus();renderPane();renderMap();}
+
+function renderNotifs(){
+  const seen=seenSet(),list=S.notifs.filter(forMe),unseen=list.filter(n=>!seen.has(n.id));
+  $('bellCount').textContent=unseen.length;$('bellCount').classList.toggle('hidden',!unseen.length);
+  const latest=unseen[unseen.length-1]||list[list.length-1];
+  if(!latest){$('strip').className='strip calm';$('strip').innerHTML='<span class="msg">No notifications</span>';return;}
+  $('strip').className='strip'+(unseen.length&&latest.sev==='P1'?'':' calm');
+  $('strip').innerHTML=`<span class="tag">${unseen.length?'NEW':'LATEST'}</span><span style="opacity:.8;font-weight:700">${latest.t}</span>
+    <span class="msg">${latest.text}</span>${unseen.length>1?`<span style="opacity:.85;font-size:12px">+${unseen.length-1} more unseen</span>`:''}
+    ${unseen.length?'<button onclick="markSeen()">Mark seen</button>':''}<button class="ghost" onclick="toggleDD(event)">All alerts</button>`;
+  $('notifDD').innerHTML='<div style="font-weight:800;padding:6px 10px 10px">Notifications</div>'+
+    [...list].reverse().map(n=>`<div class="nitem ${seen.has(n.id)?'':'unseen'}"><div class="bar" style="background:${PRI_HEX[n.sev]}"></div><div>${n.text}<small>${n.t}${n.for!=='all'?' · for '+n.for.join(', '):''}</small></div></div>`).join('');
+}
+window.markSeen=()=>{localStorage.setItem(seenKey(),JSON.stringify(S.notifs.map(n=>n.id)));renderNotifs();};
+window.toggleDD=e=>{e.stopPropagation();$('notifDD').classList.toggle('show');};
+$('bellBtn').onclick=toggleDD;
+document.addEventListener('click',e=>{if(!$('notifDD').contains(e.target))$('notifDD').classList.remove('show');});
+
+const openCalls=()=>S.calls.filter(c=>c.status!=='resolved');
+const myJobs=()=>S.calls.filter(c=>c.dispatch&&c.dispatch[me.role]&&c.dispatch[me.role].state!=='done');
+function kpi(id,label,val){$(id).innerHTML=`<span>${label}</span><b>${val}</b>`;}
+function renderStatus(){
+  const free=S.units.filter(u=>u.status==='available'),moving=S.units.filter(u=>u.status==='enroute');
+  if(can.isAgency()){
+    const mine=myJobs();
+    kpi('k1','Our open jobs',mine.length);
+    kpi('k2','New requests for us',mine.filter(c=>c.dispatch[me.role].state==='requested').length);
+    kpi('k3','Our units en route',moving.filter(u=>u.type===me.role).length);
+    kpi('k4','Our units free',`${free.filter(u=>u.type===me.role).length}/${S.units.filter(u=>u.type===me.role).length}`);
+  }else{
+    kpi('k1','Open cases',openCalls().length);
+    kpi('k2',me.role==='MECC'?'Waiting for agencies':'P1 open',me.role==='MECC'?S.calls.filter(c=>c.status==='new'||Object.values(c.dispatch||{}).some(d=>d.state==='requested')).length:openCalls().filter(c=>c.priority==='P1').length);
+    kpi('k3','Units en route',moving.length);
+    kpi('k4','Units free',`${free.length}/${S.units.length}`);
+  }
+  $('chips').innerHTML=[...S.incidents].sort((a,b)=>PRI_ORDER[a.priority]-PRI_ORDER[b.priority]||b.calls-a.calls).map(i=>`
+    <div class="ichip ${i.priority}" onclick="openIncident('${i.id}')"><div class="n">${i.calls}</div>
+    <div><b>${esc(i.name)}</b><small>${i.id} · ${SEV[i.priority]}${i.calls>=ESCALATE_AT?' · MASS':''}</small></div></div>`).join('');
+}
+
+/* =====================================================================
+   AI AS THE WORKER: it pre-selects every decision, a human approves or changes it
+   ===================================================================== */
+const manualOpen=new Set();
+window.toggleManual=k=>{manualOpen.has(k)?manualOpen.delete(k):manualOpen.add(k);renderPane();refreshDrawer();};
+const byTag=how=>how?`<span class="by ${how}">${how==='ai'?'AI approved':'manual'}</span>`:'';
+/** Unit recommendation for an agency job: nearest free unit of that agency. */
+function aiUnitBox(c,agency,key){
+  const opts=nearest(c.lat,c.lng,agency);
+  if(!opts.length)return `<div class="aibox"><div class="aihead">🤖 AI</div><div class="meta">No free ${agency} unit right now. AI will re-check when one is free.</div></div>`;
+  const o=opts[0],alt=opts[1];
+  return `<div class="aibox" onclick="event.stopPropagation()">
+    <div class="aihead">🤖 AI recommends <span class="conf">${c.priority==='P1'?'Urgent: approve now':'Ready'}</span></div>
+    <div class="airow"><span>Unit</span><b>${AG_ICON[agency]} ${o.id}</b></div>
+    <div class="airow"><span>Why</span><b>Nearest free ${agency} unit · ${o.d.toFixed(1)} km${alt?` (next: ${alt.id}, ~${alt.eta} min)`:''}</b></div>
+    <div class="airow"><span>ETA</span><b>~${o.eta} min</b></div>
+    <div class="btnrow"><button class="btn ai" onclick="dispatchUnit(${c.id},'${o.id}','ai')">✓ Approve dispatch</button><button class="btn" onclick="toggleManual('${key}')">✎ Change</button></div>
+    ${manualOpen.has(key)?`<div class="manual"><select id="man-${key}">${opts.map(x=>`<option value="${x.id}">${x.id} · ${x.d.toFixed(1)} km · ~${x.eta} min</option>`).join('')}</select>
+      <button class="btn role-c mini" onclick="dispatchUnit(${c.id},document.getElementById('man-${key}').value,'manual')">Dispatch this unit</button></div>`:''}
+  </div>`;
+}
+/** Agency recommendation for a case 999 has not sent yet. */
+function aiSendBox(c,key){
+  const ags=(c.agencies&&c.agencies.length)?c.agencies:['APM'];
+  return `<div class="aibox" onclick="event.stopPropagation()">
+    <div class="aihead">🤖 AI drafted this case <span class="conf">${c.priority} ${SEV[c.priority]}</span></div>
+    <div class="airow"><span>Send to</span><b>${ags.map(a=>AG_ICON[a]+' '+a).join(', ')}</b></div>
+    <div class="airow"><span>Nearest</span><b>${ags.map(a=>{const n=nearest(c.lat,c.lng,a)[0];return n?`${n.id} ~${n.eta}m`:`no free ${a}`;}).join(' · ')}</b></div>
+    <div class="btnrow"><button class="btn ai" onclick="approveSend(${c.id})">✓ Approve & send</button><button class="btn" onclick="toggleManual('${key}')">✎ Change</button></div>
+    ${manualOpen.has(key)?`<div class="manual">${AGENCIES.map(a=>`<label style="font-size:12px;font-weight:700;display:flex;gap:4px;align-items:center"><input type="checkbox" class="mAg-${c.id}" value="${a}" ${ags.includes(a)?'checked':''}>${AG_ICON[a]} ${a}</label>`).join('')}
+      <button class="btn role-c mini" onclick="sendRequests(${c.id},[...document.querySelectorAll('.mAg-${c.id}:checked')].map(x=>x.value),'manual')">Send to ticked</button></div>`:''}
+  </div>`;
+}
+window.approveSend=id=>{const c=S.calls.find(x=>x.id===id);sendRequests(id,(c.agencies&&c.agencies.length)?c.agencies:['APM'],'ai');};
+
+/* ---- Call transcripts as a conversation (Agent / Caller) ---- */
+function dialogHTML(lines,partial,limit){
+  let L=(lines||[]);if(limit)L=L.slice(-limit);
+  const one=(l,extra)=>`<div class="ln ${l.who} ${extra||''}"><small>${l.who==='agent'?'🎧 999 Agent':'🙋 Caller'}</small>${esc(l.text)}${extra?' <span class="caret"></span>':''}</div>`;
+  return `<div class="dlg">${L.map(l=>one(l)).join('')}${partial&&partial.text?one(partial,'partial'):''}</div>`;
+}
+const callerText=lines=>(lines||[]).filter(l=>l.who==='caller').map(l=>l.text).join(' ');
+const allText=lines=>(lines||[]).map(l=>(l.who==='agent'?'Agent: ':'Caller: ')+l.text).join('\n');
+
+/* Live call card: what 999 is hearing right now, streamed to every department */
+function liveCard(){
+  const L0=S.live;if(!L0||Date.now()-L0.upd>60000)return '';
+  const t=callerText(L0.lines)+' '+(L0.partial&&L0.partial.who==='caller'?L0.partial.text:'');
+  const {extract,scoreCase}=window.TriageRules,e=extract(t),sc=scoreCase(e,t);
+  return `<div class="qcard livecard" style="border-left-color:var(--red)">
+    <div class="qtop"><span class="livetag"><i></i>LIVE CALL</span><span class="meta">999 MECC · ${esc(L0.by)}</span><span class="wait" data-since="${L0.t0}">00:00</span></div>
+    <div class="box" style="margin:0"><h4>📞 Live transcript</h4>${(L0.lines&&L0.lines.length)||(L0.partial&&L0.partial.text)?dialogHTML(L0.lines,L0.partial,6):'<div class="meta">Call connecting...</div>'}</div>
+    <div class="aisum"><b>🤖 AI SUMMARY (LIVE)</b>${t.trim()?`<span class="pri ${sc.level}">${sc.level} ${SEV[sc.level]}</span> ${esc(sc.reason)}<br>📍 ${esc(e.location||'location not heard yet')}${e.people?' · 👥 '+e.people:''}${e.vulnerable.length?' · ⚠ '+esc(e.vulnerable.join(', ')):''}`:'Listening...'}</div>
+  </div>`;
+}
+let liveSaveT=0,liveSaveTimer=null,liveStart=0,liveEnd=false;
+/** Share the live conversation (throttled ~2x/second) so every department sees it as it happens. */
+function shareLive(end){
+  liveEnd=!!end;
+  const write=()=>{liveSaveTimer=null;S=load()||S;
+    S.live=liveEnd?null:{lines:liveLines,partial:livePartial,t0:liveStart,by:me.name,upd:Date.now()};persist();liveSaveT=Date.now();};
+  if(end){clearTimeout(liveSaveTimer);liveSaveTimer=null;return write();}
+  if(Date.now()-liveSaveT>500)write();
+  else if(!liveSaveTimer)liveSaveTimer=setTimeout(write,500-(Date.now()-liveSaveT));
+}
+
+/* =====================================================================
+   RIGHT PANEL (depends on role)
+   ===================================================================== */
+function tabsFor(){
+  if(can.takeCalls())return [['queue',`Cases (${openCalls().length})`],['live',onCall?'<span class="live"></span>Live call':'Live call']];
+  if(can.isAgency())return [['jobs',`${me.icon} Our jobs (${myJobs().length})`],['cases','All cases']];
+  return [['cases',`All cases (${openCalls().length})`],['units','All units']];
+}
+window.setTab=t=>{tab=t;renderPane();};
+function renderPane(){
+  $('tabs').innerHTML=tabsFor().map(([k,l])=>`<button class="tab ${tab===k?'on':''}" onclick="setTab('${k}')">${l}</button>`).join('');
+  if(tab==='live'){if(!onCall&&!pending)renderLiveIdle();return;}   // live call pane manages itself
+  if(tab==='queue')return renderQueue(true);
+  if(tab==='cases')return renderQueue(false);
+  if(tab==='jobs')return renderJobs();
+  if(tab==='units')return renderUnitsList();
+}
+
+function dchips(c){
+  return `<div class="dchips">${Object.entries(c.dispatch||{}).map(([a,d])=>{
+    const u=S.units.find(x=>x.id===d.unit);
+    const txt=d.state==='requested'?'requested':d.state==='enroute'?`${d.unit} · <span data-eta="${d.unit}">${etaLeft(u)}</span> min`:d.state==='onscene'?`${d.unit} on scene`:'done';
+    return `<span class="dchip ${d.state} ${me.role===a?'mine':''}">${AG_ICON[a]} ${a}: ${txt}</span>`;}).join('')
+    ||(c.agencies||[]).map(a=>`<span class="dchip">${AG_ICON[a]} ${a}: not sent</span>`).join('')}</div>`;
+}
+function qcard(c){
+  const w=Math.floor((Date.now()-c.at)/MIN),late=c.status!=='resolved'&&c.priority==='P1'&&w>=5&&Object.values(c.dispatch||{}).every(d=>d.state==='requested');
+  return `<div class="qcard ${c.status==='resolved'?'done':''}" style="border-left-color:${PRI_HEX[c.priority]}" onclick="openCase(${c.id})">
+    <div class="qtop"><span class="pri ${c.priority}">${c.priority} ${SEV[c.priority]}</span>${c.status==='new'?'<span class="dchip requested">Not sent yet</span>':''}
+      <span class="wait ${late?'late':''}">${c.status==='resolved'?'✓ Resolved':(late?'⚠ ':'')+'Waiting '+w+' min'}</span></div>
+    <div class="reason">${esc(c.reason)}</div><div class="meta">📍 ${esc(c.location)} · ${c.incident}</div>
+    <div class="aisum"><b>🤖 AI SUMMARY</b>${esc(c.summary)}</div>${dchips(c)}</div>`;
+}
+function renderQueue(withCallButtons){
+  const q=$('search').value.toLowerCase();
+  const list=S.calls.filter(c=>!q||JSON.stringify(c).toLowerCase().includes(q))
+    .sort((a,b)=>(a.status==='resolved')-(b.status==='resolved')||PRI_ORDER[a.priority]-PRI_ORDER[b.priority]||a.at-b.at);
+  $('pane').innerHTML=liveCard()+(withCallButtons?`<div class="qtools"><button class="btn red" onclick="answerLive()">🎙 Answer call (live mic)</button><button class="btn" onclick="simulate()">▶ Sample call</button></div>
+    <div class="qtools"><select class="btn" id="micLang"><option value="en-MY">Mic: English (MY)</option><option value="ms-MY">Mic: Bahasa Melayu</option></select></div>`:
+    (can.isAgency()?`<div class="lock" style="margin:0 2px 10px">🔒 View only. You can act on ${me.short} jobs in "Our jobs".</div>`:`<div class="lock" style="margin:0 2px 10px">🔒 Command view: live picture of every agency, read only.</div>`))
+    +(withCallButtons?'<div class="lock" style="margin:0 2px 10px">Cases are for review. Approval happens once, during the live call.</div>':'')
+    +(list.map(qcard).join('')||'<div class="empty">No cases match.</div>');
+}
+function renderJobs(){
+  const jobs=myJobs().sort((a,b)=>PRI_ORDER[a.priority]-PRI_ORDER[b.priority]||a.at-b.at);
+  const req=jobs.filter(c=>c.dispatch[me.role].state==='requested'),act=jobs.filter(c=>c.dispatch[me.role].state!=='requested');
+  const card=c=>{
+    const d=c.dispatch[me.role],u=S.units.find(x=>x.id===d.unit);
+    let action='';
+    if(d.state==='requested'){
+      action=aiUnitBox(c,me.role,'j'+c.id);
+    }else if(d.state==='enroute'){
+      action=`<div class="arow" style="background:#fff0e6"><span class="ic">${AG_ICON[me.role]}</span><div><b>${d.unit} en route ${byTag(d.by)}</b><small>ETA <span data-eta="${d.unit}">${etaLeft(u)}</span> min · ${d.src==='road'?'real road route':'estimated'}</small></div></div>`;
+    }else if(d.state==='onscene'){
+      action=`<div class="arow" style="background:#fdeceb" onclick="event.stopPropagation()"><span class="ic">${AG_ICON[me.role]}</span><div><b>${d.unit} on scene</b><small>Since ${hm(d.arrived||Date.now())}</small></div><div class="act"><button class="mini btn green" onclick="jobDone(${c.id})">✓ Job done</button></div></div>`;
+    }
+    return qcard(c).replace(/<\/div>$/,action+'</div>');
+  };
+  $('pane').innerHTML=liveCard()+`<div class="section">New requests (${req.length})</div>${req.map(card).join('')||'<div class="empty">No new requests.</div>'}
+    <div class="section" style="margin-top:16px">Active (${act.length})</div>${act.map(card).join('')||'<div class="empty">Nothing active.</div>'}`;
+}
+function renderUnitsList(){
+  const st={available:['Free','#1e8a52'],enroute:['En route','#f97316'],onscene:['On scene','#e5322d']};
+  $('pane').innerHTML=liveCard()+AGENCIES.map(a=>`<div class="section">${AG_ICON[a]} ${a}</div>`+S.units.filter(u=>u.type===a).map(u=>{
+    const job=u.job&&S.calls.find(c=>c.id===u.job.caseId);
+    return `<div class="urow" onclick="focusUnit('${u.id}')" style="cursor:pointer"><span class="ic">${u.icon}</span><div><b>${u.id}</b><small>${esc(u.name)}${job&&u.status!=='available'?' → '+esc(job.location):''}</small></div>
+      <span class="st" style="color:${st[u.status][1]}">${st[u.status][0]}${u.status==='enroute'?` · <span data-eta="${u.id}">${etaLeft(u)}</span> min`:''}</span></div>`;}).join('')).join('');
+}
+window.focusUnit=id=>{const u=S.units.find(x=>x.id===id),p=unitPos(u);map&&map.flyTo([p.lat,p.lng],15,{duration:.8});};
+$('search').oninput=()=>renderPane();
+
+/* =====================================================================
+   ACTIONS (permission-checked)
+   ===================================================================== */
+window.sendRequests=(id,ags,how)=>{
+  if(!can.triage())return toast('🔒 Only 999 MECC can send requests');
+  ags=ags||[...document.querySelectorAll('.dAg:checked')].map(x=>x.value);how=how||'manual';
+  if(!ags.length)return toast('Pick at least one agency');
+  mutate(s=>{const c=s.calls.find(x=>x.id===id);c.status='sent';c.dispatch=c.dispatch||{};c.sentBy=how;
+    ags.forEach(a=>{if(!c.dispatch[a])c.dispatch[a]={state:'requested'};});
+    addNotif(s,c.priority,`<b>New request</b>: ${esc(c.reason)}, ${esc(c.location)} (${c.priority}) ${how==='ai'?'· AI recommendation approved':'· sent manually'}`,ags);});
+  manualOpen.delete('q'+id);manualOpen.delete('d'+id);
+  toast(`${how==='ai'?'✓ AI recommendation approved':'✎ Sent manually'}: request to ${ags.join(', ')}`);
+};
+window.setPri=(id,p)=>{
+  if(!can.triage())return toast('🔒 Only 999 MECC can change priority');
+  mutate(s=>{const c=s.calls.find(x=>x.id===id);c.priority=p;const i=s.incidents.find(x=>x.id===c.incident);if(i&&PRI_ORDER[p]<PRI_ORDER[i.priority])i.priority=p;});
+};
+window.dispatchUnit=async(id,uid,how='manual')=>{
+  if(!can.isAgency())return toast('🔒 Only the agency itself can dispatch its units');
+  const c=S.calls.find(x=>x.id===id),u=S.units.find(x=>x.id===uid);
+  if(!c||!u||u.type!==me.role)return toast('🔒 You can only dispatch your own units');
+  toast(`Getting road route for ${uid}...`);
+  const r=await roadRoute([u.lat,u.lng],[c.lat,c.lng]);
+  mutate(s=>{
+    const cc=s.calls.find(x=>x.id===id),uu=s.units.find(x=>x.id===uid);
+    if(uu.status!=='available')return;
+    uu.status='enroute';uu.job={caseId:id,path:r.path,t0:Date.now(),eta:r.eta,dur:r.eta*DEMO_SPEED};
+    cc.dispatch[me.role]={state:'enroute',unit:uid,eta:r.eta,src:r.src,by:how};
+    addNotif(s,cc.priority,`<b>${uid}</b> (${me.short}) dispatched to ${esc(cc.location)} · ETA ${r.eta} min · ${how==='ai'?'AI recommendation approved':'manual choice'}`);
+  });
+  manualOpen.delete('j'+id);manualOpen.delete('d'+id);
+  toast(`${how==='ai'?'✓ AI pick approved':'✎ Manual pick'} · 🚨 ${uid} dispatched · ETA ${r.eta} min (${r.src==='road'?'real road route':'estimate'}) · caller gets SMS`);
+};
+window.jobDone=id=>{
+  mutate(s=>{
+    const c=s.calls.find(x=>x.id===id),d=c.dispatch[me.role],u=s.units.find(x=>x.id===d.unit);
+    d.state='done';if(u){u.status='available';u.job=null;}
+    addNotif(s,'P4',`${me.short} finished job at ${esc(c.location)}. <b>${d.unit}</b> free again`);
+    if(Object.values(c.dispatch).every(x=>x.state==='done')){c.status='resolved';addNotif(s,'P4',`Case #${c.id} resolved: all agencies done`);}
+  });
+};
+
+/* =====================================================================
+   MAP (everyone sees everything, live)
+   ===================================================================== */
+let map,caseLayer,unitLayer,unitMarkers={},routeLines={},callerPin=null;
+function initMap(){
+  if(map||!window.L){if(!window.L)$('map').innerHTML='<div class="empty">Map needs internet.</div>';return;}
+  map=L.map('map').setView([3.11,101.66],12);
+  let tileErr=0;
+  const osm=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors',maxZoom:19})
+    .on('tileerror',()=>{if(++tileErr===3)$('map').classList.add('offline');}).on('tileload',()=>$('map').classList.remove('offline'));
+  const carto=L.tileLayer('https://{s}.basemap.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap &copy; CARTO',maxZoom:19})
+    .on('tileerror',()=>{if(++tileErr===3){tileErr=0;map.removeLayer(carto);osm.addTo(map);}}).addTo(map);
+  caseLayer=L.layerGroup().addTo(map);unitLayer=L.layerGroup().addTo(map);
+}
+function renderMap(){
+  if(!map)return;
+  caseLayer.clearLayers();
+  S.incidents.forEach(i=>{
+    if(filter!=='ALL'&&i.priority!==filter)return;
+    const h=PRI_HEX[i.priority];
+    L.circle([i.lat,i.lng],{radius:400+i.calls*30,color:h,fillColor:h,fillOpacity:.12,weight:1}).addTo(caseLayer).on('click',()=>openIncident(i.id));
+    L.marker([i.lat,i.lng],{icon:L.divIcon({className:'',html:`<div class="pin" style="background:${h}">${i.calls}</div>`,iconSize:[34,34],iconAnchor:[17,17]})}).addTo(caseLayer).on('click',()=>openIncident(i.id));
+  });
+  S.calls.filter(c=>c.status!=='resolved'&&(filter==='ALL'||c.priority===filter)&&(!onlyMine||c.dispatch&&c.dispatch[me.role])).forEach(c=>{
+    L.circleMarker([c.lat,c.lng],{radius:7,color:'#fff',weight:2,fillColor:PRI_HEX[c.priority],fillOpacity:1})
+      .addTo(caseLayer).bindTooltip(`${c.priority} · ${esc(c.reason)}`).on('click',()=>openCase(c.id));
+  });
+  unitLayer.clearLayers();unitMarkers={};routeLines={};
+  if(!showUnits)return;
+  S.units.filter(u=>!onlyMine||u.type===me.role).forEach(u=>{
+    const p=unitPos(u),mine=me.role===u.type;
+    if(u.status==='enroute'){
+      routeLines[u.id]=L.polyline([[p.lat,p.lng],...(p.rest||[u.job.path[u.job.path.length-1]])],{color:mine?me.color:'#f97316',weight:4,opacity:.85,dashArray:'8 8'}).addTo(unitLayer);
+    }
+    const m=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:`<div class="unit ${u.status} ${mine?'mine':''}">${u.icon}</div>`,iconSize:[30,30],iconAnchor:[15,15]}),zIndexOffset:800}).addTo(unitLayer);
+    if(u.status==='enroute')m.bindTooltip(`${u.id} · ${etaLeft(u)} min`,{permanent:true,direction:'top',offset:[0,-14],className:'eta-tip'});
+    else m.bindTooltip(`${u.id} · ${esc(u.name)} · ${u.status==='available'?'Free':'On scene'}`);
+    unitMarkers[u.id]=m;
+  });
+}
+document.querySelectorAll('.fchip[data-f]').forEach(b=>b.onclick=()=>{document.querySelectorAll('.fchip[data-f]').forEach(x=>x.classList.remove('on'));b.classList.add('on');filter=b.dataset.f;renderMap();});
+$('unitToggle').onclick=()=>{showUnits=!showUnits;$('unitToggle').classList.toggle('on',showUnits);renderMap();};
+$('mineToggle').onclick=()=>{onlyMine=!onlyMine;$('mineToggle').classList.toggle('on',onlyMine);renderMap();};
+
+/* Live tick: move units along their road, count ETAs down, detect arrival */
+setInterval(()=>{
+  if(!me)return;
+  const moving=S.units.filter(u=>u.status==='enroute');
+  moving.forEach(u=>{
+    const p=unitPos(u),m=unitMarkers[u.id];
+    if(m){m.setLatLng([p.lat,p.lng]);m.setTooltipContent(`${u.id} · ${etaLeft(u)} min`);}
+    if(routeLines[u.id])routeLines[u.id].setLatLngs([[p.lat,p.lng],...(p.rest||[u.job.path[u.job.path.length-1]])]);
+    if(p.k>=1){
+      mutate(s=>{  // re-checked on fresh shared state so only one tab records the arrival
+        const uu=s.units.find(x=>x.id===u.id);if(!uu||uu.status!=='enroute')return;
+        const end=uu.job.path[uu.job.path.length-1];uu.lat=end[0];uu.lng=end[1];uu.status='onscene';
+        const c=s.calls.find(x=>x.id===uu.job.caseId);
+        if(c&&c.dispatch[uu.type]){c.dispatch[uu.type].state='onscene';c.dispatch[uu.type].arrived=Date.now();}
+        addNotif(s,'P2',`<b>${uu.id}</b> arrived on scene: ${esc(c?c.location:'')}`);
+      });
+    }
+  });
+  document.querySelectorAll('[data-since]').forEach(el=>{const s=Math.max(0,Math.floor((Date.now()-+el.dataset.since)/1000));el.textContent=`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;});
+  document.querySelectorAll('[data-eta]').forEach(el=>{const u=S.units.find(x=>x.id===el.dataset.eta);if(u)el.textContent=etaLeft(u);});
+},250);
+
+/* =====================================================================
+   DRAWER: case & incident details (actions depend on role)
+   ===================================================================== */
+let drawerFor=null;
+window.closeDrawer=()=>{$('drawer').classList.remove('show');drawerFor=null;};
+function refreshDrawer(){if(!drawerFor)return;drawerFor[0]==='case'?openCase(drawerFor[1],true):openIncident(drawerFor[1],true);}
+const fld=(k,v)=>`<div class="field"><span>${k}</span><b>${v}</b></div>`;
+window.openCase=(id,silent)=>{
+  const c=S.calls.find(x=>x.id===id);if(!c)return;
+  const inc=S.incidents.find(i=>i.id===c.incident);
+  drawerFor=['case',id];
+  if(!silent&&map)map.flyTo([c.lat,c.lng],15,{duration:.8});
+  const rows=AGENCIES.filter(a=>c.dispatch&&c.dispatch[a]).map(a=>{
+    const d=(c.dispatch||{})[a],u=d&&S.units.find(x=>x.id===d.unit);
+    let st=!d?'<small>Not requested</small>':d.state==='requested'?'<small style="color:#8a6500">Requested · waiting for '+a+'</small>':d.state==='enroute'?`<small style="color:#c2410c">${d.unit} en route · ETA <span data-eta="${d.unit}">${etaLeft(u)}</span> min</small>`:d.state==='onscene'?`<small style="color:#e5322d">${d.unit} on scene</small>`:'<small style="color:#1e8a52">Done</small>';
+    let act='';
+    if(can.dispatch(a)&&d&&d.state==='requested')act='__AI__';
+    if(can.dispatch(a)&&d&&d.state==='onscene')act=`<button class="mini btn green" onclick="jobDone(${c.id})">✓ Job done</button>`;
+    if(!act&&d&&d.state==='requested'&&!can.dispatch(a))act='<span class="lock">🔒 '+a+' only</span>';
+    if(act==='__AI__')return `<div class="arow" style="display:block"><div style="display:flex;gap:10px;align-items:center"><span class="ic">${AG_ICON[a]}</span><div><b>${a}</b>${st}</div></div>${aiUnitBox(c,a,'d'+c.id)}</div>`;
+    return `<div class="arow"><span class="ic">${AG_ICON[a]}</span><div><b>${a} ${byTag(d&&d.by)}</b>${st}</div><div class="act">${act}</div></div>`;
+  }).join('');
+  $('drawer').innerHTML=`<button class="x" onclick="closeDrawer()">×</button>
+    <span class="pri ${c.priority}">${c.priority} ${SEV[c.priority]}</span> ${c.status==='resolved'?'<span class="dchip done">Resolved</span>':''}
+    <h3>${esc(c.reason)}</h3><div class="sub">Case #${c.id} · ${hm(c.at)} · 📞 ${esc(c.caller||'-')}</div>
+    <div class="box"><h4>🤖 AI summary</h4><div style="font-size:13px;line-height:1.5">${esc(c.summary)}</div></div>
+    <div class="box">${fld('Location','📍 '+esc(c.location))}${fld('Incident',inc?`${inc.id} · ${esc(inc.name)}`:'-')}${fld('Waiting',Math.floor((Date.now()-c.at)/MIN)+' min')}</div>
+    <div class="box"><h4>Agencies</h4>${rows||'<div class="meta">No agency requested yet.</div>'}
+      </div>
+    <div class="box"><h4>📞 Call transcript</h4>${c.dialog&&c.dialog.length?dialogHTML(c.dialog):'<div class="meta">No transcript recorded.</div>'}</div>
+    ${c.sentBy?`<div class="meta" style="padding:0 4px 8px">Sent by 999 MECC · ${c.sentBy==='ai'?'AI decision approved during the call':'edited by the operator during the call'}</div>`:''}`;
+  $('drawer').classList.add('show');
+};
+window.openIncident=(id,silent)=>{
+  const i=S.incidents.find(x=>x.id===id),its=S.calls.filter(c=>c.incident===id),open=its.filter(c=>c.status!=='resolved');
+  drawerFor=['inc',id];
+  if(!silent&&map)map.flyTo([i.lat,i.lng],14,{duration:.8});
+  const units=S.units.filter(u=>u.job&&its.some(c=>c.id===u.job.caseId)&&u.status!=='available');
+  $('drawer').innerHTML=`<button class="x" onclick="closeDrawer()">×</button>
+    <span class="pri ${i.priority}">${i.priority} ${SEV[i.priority]}</span>${i.calls>=ESCALATE_AT?' <span class="pri P1">MASS INCIDENT</span>':''}
+    <h3>${esc(i.name)}</h3><div class="sub">${i.id} · ${esc(i.area)}</div>
+    <div class="box">${fld('Total calls',i.calls)}${fld('Open cases',`${open.length} (${open.filter(c=>c.priority==='P1').length} P1)`)}</div>
+    <div class="box"><h4>Units working here (live)</h4>${units.map(u=>`<div class="arow"><span class="ic">${u.icon}</span><div><b>${u.id}</b><small>${u.status==='enroute'?`En route · <span data-eta="${u.id}">${etaLeft(u)}</span> min`:'On scene'}</small></div></div>`).join('')||'<div class="meta">None yet</div>'}</div>
+    <div class="box"><h4>Cases</h4>${its.sort((a,b)=>PRI_ORDER[a.priority]-PRI_ORDER[b.priority]).map(c=>`
+      <div class="arow" style="cursor:pointer" onclick="openCase(${c.id})"><span class="pri ${c.priority}">${c.priority}</span><div><b style="font-size:12px">${esc(c.reason)}</b><small>${c.status==='resolved'?'Resolved':Object.keys(c.dispatch||{}).join(', ')||'Not sent'}</small></div></div>`).join('')}</div>`;
+  $('drawer').classList.add('show');
+};
+
+/* =====================================================================
+   LIVE CALL (999 MECC only): mic transcript + AI form
+   ===================================================================== */
+let onCall=false,pending=null,rec=null,liveOn=false,liveTimer=null,scriptIdx=0;
+const SCRIPTS=[
+  [["agent","999, what's your emergency?"],["caller","Tolong! Air dah naik paras dada!"],["agent","Where are you right now?"],["caller","Kami di Jalan 3, Taman Connaught. We're on the roof."],["agent","Is anyone hurt?"],["caller","My father, he's 72, he's not breathing!"],["agent","Who else is with you?"],["caller","My two kids are with me."],["agent","Stay on the roof. I'm sending help now."]],
+  [["agent","999, what's your emergency?"],["caller","There is a fire at Jalan Ampang near KLCC!"],["agent","Is everyone out of the building?"],["caller","No, smoke everywhere and my grandmother cannot walk."],["agent","Stay low and close the door behind you. Bomba is coming."]]
+];
+let liveLines=[],livePartial=null,curWho='caller';
+function setOnCall(on){onCall=on;$('opStatus').classList.toggle('oncall',on);$('opStatus').querySelector('span').textContent=on?'On call':'Available';}
+function renderLiveIdle(){$('pane').innerHTML=`<div class="empty">No active call.<br><br><button class="btn red" onclick="answerLive()">🎙 Answer call (live mic)</button><br><br><button class="btn" onclick="simulate()">▶ Play sample call</button></div>`;}
+function livePaneShell(title,sub,withWho){
+  tab='live';$('tabs').innerHTML=tabsFor().map(([k,l])=>`<button class="tab ${tab===k?'on':''}" onclick="setTab('${k}')">${l}</button>`).join('');
+  liveLines=[];livePartial=null;curWho='caller';liveStart=Date.now();
+  $('pane').innerHTML=`<div class="callhead"><div class="ph">🎙</div><div><b>${title}</b><small id="micState">${sub}</small></div><span class="timer" id="ctimer">00:00</span></div>
+    <div class="box"><h4>📞 Live transcript</h4><div id="dlgBox"><div class="meta">Call connecting...</div></div>
+      ${withWho?`<div class="who"><button id="whoCaller" class="on" onclick="setWho('caller')">🙋 Caller is speaking</button><button id="whoAgent" onclick="setWho('agent')">🎧 I'm speaking</button></div>`:''}
+      <div class="typeline" id="typeLine"><input id="typeIn" placeholder="Type a line (Enter) as ${withWho?'current speaker':'caller'}..."><button class="btn mini" onclick="typeLine()">Add</button></div></div>
+    <div class="box" id="liveHint"><h4>🤖 AI is hearing</h4><div class="meta">Waiting for the caller...</div></div>
+    <div class="btnrow" id="liveBtns"><button class="btn" onclick="cancelLive()">Cancel</button><button class="btn red" onclick="endLive()">End call & analyse ➤</button></div>
+    <div id="aiArea"></div>`;
+  clearInterval(liveTimer);
+  liveTimer=setInterval(()=>{const s=Math.floor((Date.now()-liveStart)/1000);if($('ctimer'))$('ctimer').textContent=`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;},500);
+  $('typeIn').onkeydown=e=>{if(e.key==='Enter')typeLine();};
+  shareLive();
+}
+window.setWho=w=>{curWho=w;$('whoCaller')&&$('whoCaller').classList.toggle('on',w==='caller');$('whoAgent')&&$('whoAgent').classList.toggle('on',w==='agent');};
+window.typeLine=()=>{const v=$('typeIn').value.trim();if(!v)return;liveLines.push({who:curWho,text:v});$('typeIn').value='';liveUpdate();};
+function liveUpdate(){
+  if($('dlgBox')){$('dlgBox').innerHTML=dialogHTML(liveLines,livePartial);const d=$('dlgBox').querySelector('.dlg');if(d)d.scrollTop=d.scrollHeight;}
+  liveHint(callerText(liveLines)+' '+(livePartial&&livePartial.who==='caller'?livePartial.text:''));
+  if(onCall)shareLive();
+}
+window.answerLive=()=>{
+  if(!can.takeCalls()||onCall)return;
+  const lang=$('micLang')?$('micLang').value:'en-MY';
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  setOnCall(true);pending=null;
+  livePaneShell('Live 999 call',SR?'Listening · tap who is speaking':'No mic support: type the call',true);
+  if(!SR){toast('Live speech needs Chrome or Edge. You can type instead.');return;}
+  rec=new SR();rec.lang=lang;rec.continuous=true;rec.interimResults=true;
+  rec.onresult=e=>{let mid='';
+    for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript.trim();if(e.results[i].isFinal){if(t)liveLines.push({who:curWho,text:t});}else mid+=t+' ';}
+    livePartial=mid.trim()?{who:curWho,text:mid.trim()}:null;liveUpdate();};
+  rec.onerror=e=>{if(e.error==='not-allowed'){$('micState').textContent='Mic blocked: allow microphone, or type below';liveOn=false;}};
+  rec.onend=()=>{if(liveOn)try{rec.start();}catch(_){}};
+  liveOn=true;rec.start();
+};
+window.simulate=async()=>{
+  if(!can.takeCalls()||onCall)return;
+  const script=SCRIPTS[scriptIdx++%SCRIPTS.length];
+  setOnCall(true);pending=null;
+  livePaneShell('Incoming 999 call (sample)','+60 12-77x xxxx',false);
+  for(const [who,text] of script){
+    const words=text.split(' ');
+    for(let i=0;i<words.length;i++){if(!$('dlgBox'))return;livePartial={who,text:words.slice(0,i+1).join(' ')};liveUpdate();await new Promise(r=>setTimeout(r,70));}
+    livePartial=null;liveLines.push({who,text});liveUpdate();await new Promise(r=>setTimeout(r,250));
+  }
+  endLive();
+};
+function liveHint(text){
+  if(!$('liveHint')||!text.trim())return;
+  const {extract,scoreCase}=window.TriageRules,e=extract(text),s=scoreCase(e,text);
+  $('liveHint').innerHTML=`<h4>🤖 AI is hearing</h4><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span class="pri ${s.level}">${s.level} ${SEV[s.level]}</span><b style="font-size:13px">${esc(s.reason)}</b></div>
+    <div class="meta">📍 ${esc(e.location||'location not heard yet')}${e.people?' · 👥 '+e.people:''}${e.vulnerable.length?' · ⚠ '+esc(e.vulnerable.join(', ')):''}</div>`;
+}
+function stopMic(){liveOn=false;try{rec&&rec.stop();}catch(_){}clearInterval(liveTimer);}
+window.cancelLive=()=>{stopMic();shareLive(true);pending=null;setOnCall(false);tab='queue';renderPane();};
+window.endLive=async()=>{
+  if(livePartial&&livePartial.text){liveLines.push(livePartial);livePartial=null;}
+  const text=callerText(liveLines).trim();if(!text)return toast('No caller words in the transcript yet');
+  stopMic();shareLive(true);$('micState').textContent='Call ended · analysing';
+  $('dlgBox').innerHTML=dialogHTML(liveLines);
+  ['liveHint','liveBtns','typeLine'].forEach(id=>$(id)&&$(id).remove());document.querySelector('#pane .who')&&document.querySelector('#pane .who').remove();
+  $('aiArea').innerHTML='<div class="empty">🤖 Analysing + locating address on the map...</div>';
+  const r=await analyzeCall(text);pending={text,dialog:liveLines.slice(),result:r};
+  await locate(r);renderLiveForm();
+};
+async function geocode(q){
+  try{const ctl=new AbortController();setTimeout(()=>ctl.abort(),4000);
+    const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=my&q='+encodeURIComponent(q),{signal:ctl.signal});
+    const j=await r.json();if(j[0])return [+j[0].lat,+j[0].lon];}catch(_){}
+  return null;
+}
+async function locate(r){
+  if(!r.location||r.location==='Unknown')return;
+  const g=await geocode(r.location+', Malaysia')||await geocode(r.location.split(',').slice(-1)[0]+', Malaysia');
+  if(!g||!map)return;
+  pending.geo=g;
+  if(callerPin)map.removeLayer(callerPin);
+  callerPin=L.marker(g,{icon:L.divIcon({className:'',html:'<div class="pin" style="background:#1d1f2c;font-size:15px">📍</div>',iconSize:[34,34],iconAnchor:[17,17]}),zIndexOffset:900}).addTo(map).bindTooltip('Caller location',{permanent:true,direction:'top',offset:[0,-16]});
+  map.flyTo(g,16,{duration:1});
+}
+function renderLiveForm(){
+  const r=pending.result,inc=S.incidents.find(i=>i.id===r.match);
+  const lat=pending.geo?pending.geo[0]:inc?inc.lat+.003:3.14,lng=pending.geo?pending.geo[1]:inc?inc.lng-.002:101.69;
+  pending.lat=lat;pending.lng=lng;
+  const units=r.agencies.map(a=>{const n=nearest(lat,lng,a)[0];return n?`${AG_ICON[a]} ${n.id} ~${n.eta}m`:`${AG_ICON[a]} none free`;}).join(' · ');
+  const conf=r.overridden?'High · safety keyword':(r.location!=='Unknown'?'Medium · check details':'Low · location unclear');
+  const showManual=manualOpen.has('live');
+  $('aiArea').innerHTML=`<div class="aibox">
+      <div class="aihead">🤖 AI decision · waiting for your approval <span class="conf">${conf}</span></div>
+      <div class="airow"><span>Priority</span><b><span class="pri ${r.priority}">${r.priority} ${SEV[r.priority]}</span></b></div>
+      <div class="airow"><span>Reason</span><b>${esc(r.reason)}</b></div>
+      <div class="airow"><span>Location</span><b>📍 ${esc(r.location)}${pending.geo?' <span style="color:#1e8a52">· on map</span>':''}</b></div>
+      <div class="airow"><span>Incident</span><b>${inc?`${inc.id} · ${esc(inc.name)}`:'New incident'}</b></div>
+      <div class="airow"><span>Send to</span><b>${r.agencies.map(a=>AG_ICON[a]+' '+a).join(', ')}</b></div>
+      <div class="airow"><span>Nearest units</span><b>${units}</b></div>
+      ${r.overridden?`<div class="override">⚠ ${esc(r.overridden)}</div>`:''}
+      <div class="btnrow"><button class="btn ai" onclick="commitCall(true,'ai')">✓ Approve & send</button><button class="btn" onclick="toggleLiveManual()">✎ ${showManual?'Hide manual edit':'Change manually'}</button></div>
+    </div>
+    <div class="box form ${showManual?'':'hidden'}" id="manualForm" style="margin-top:12px">
+    <h4>Manual edit · overrides AI</h4>
+    <div class="row2"><div><label>Priority</label><select id="fPri">${['P1','P2','P3','P4'].map(p=>`<option ${p===r.priority?'selected':''}>${p} ${SEV[p]}</option>`).join('')}</select></div>
+      <div><label>Incident</label><select id="fInc">${S.incidents.map(i=>`<option value="${i.id}" ${i.id===r.match?'selected':''}>${i.id} ${esc(i.name)}</option>`).join('')}<option value="new" ${r.match==='new'?'selected':''}>+ New incident</option></select></div></div>
+    <label>Reason</label><input id="fReason" value="${esc(r.reason)}">
+    <label>Location</label><input id="fLoc" value="${esc(r.location)}">
+    <label>Summary</label><textarea id="fSum">${esc(r.summary)}</textarea>
+    <label>Request agencies</label><div class="checks">${AGENCIES.map(a=>`<label><input type="checkbox" class="fAg" value="${a}" ${r.agencies.includes(a)?'checked':''}>${AG_ICON[a]} ${a}</label>`).join('')}</div>
+    <div class="btnrow"><button class="btn red" onclick="commitCall(true,'manual')">Send edited case ➤</button></div></div>`;
+}
+window.toggleLiveManual=()=>{manualOpen.has('live')?manualOpen.delete('live'):manualOpen.add('live');$('manualForm').classList.toggle('hidden');
+  const b=document.querySelector('#aiArea .aibox .btnrow .btn:not(.ai)');if(b)b.textContent=manualOpen.has('live')?'✎ Hide manual edit':'✎ Change manually';};
+window.commitCall=(send,how='manual')=>{
+  const r=pending.result,ags=[...document.querySelectorAll('.fAg:checked')].map(x=>x.value);
+  const f={priority:$('fPri').value.slice(0,2),reason:$('fReason').value,location:$('fLoc').value,summary:$('fSum').value,incId:$('fInc').value};
+  let newId;
+  mutate(s=>{
+    let inc=s.incidents.find(i=>i.id===f.incId);
+    if(!inc){inc={id:'INC-0'+(s.incidents.length+4),name:((r.hazards&&r.hazards[0])||'Incident')+' · '+f.location,area:f.location,keywords:[f.location.toLowerCase()],calls:0,priority:f.priority,lat:pending.lat,lng:pending.lng};s.incidents.push(inc);}
+    inc.calls++;if(PRI_ORDER[f.priority]<PRI_ORDER[inc.priority])inc.priority=f.priority;
+    const c={id:s.nextId++,at:Date.now(),sentBy:send?how:null,priority:f.priority,reason:f.reason,summary:f.summary,location:f.location,incident:inc.id,status:send?'sent':'new',
+      dispatch:{},agencies:ags,caller:'012-77x xxxx',dialog:pending.dialog,transcript:allText(pending.dialog),lat:pending.lat,lng:pending.lng};
+    if(send)ags.forEach(a=>c.dispatch[a]={state:'requested'});
+    s.calls.push(c);newId=c.id;
+    if(send)addNotif(s,f.priority,`<b>New request</b>: ${esc(f.reason)}, ${esc(f.location)} (${f.priority}) ${how==='ai'?'· AI recommendation approved':'· edited by operator'}`,ags);
+    if(inc.calls===ESCALATE_AT)addNotif(s,'P1',`<b>Mass incident:</b> ${esc(inc.name)} reached ${inc.calls} calls`);
+  });
+  if(callerPin&&map){map.removeLayer(callerPin);callerPin=null;}
+  manualOpen.delete('live');pending=null;setOnCall(false);tab='queue';renderPane();
+  toast(send?`${how==='ai'?'✓ AI decision approved':'✎ Edited case'} · Case #${newId} sent to ${ags.join(', ')}. Agencies see it now.`:`Case #${newId} saved`);
+};
+
+/* =====================================================================
+   BOOT
+   ===================================================================== */
+setInterval(()=>{$('clock').textContent=new Date().toTimeString().slice(0,8);},1000);
+setInterval(()=>{if(me&&!onCall&&tab!=='live')renderPane();},20000);  // refresh waiting times
+// No sign-in: open straight into the last department used in this tab (default 999 MECC)
+start((r=>ACCOUNTS.some(a=>a.role===r)?r:'MECC')(sessionStorage.getItem('siaga-role')));
+</script>
+</body>
+</html>
