@@ -20,7 +20,8 @@ It's a single static file, so there's nothing to install.
 ```bash
 python -m http.server 8000
 # open http://localhost:8000 in Chrome or Edge
-```
+```deploy link
+https://qyannnnn.github.io/kiro123/
 
 Open several tabs and use **Switch account** in each one (999 MECC, KKM, Bomba, APM, PDRM, Command). The tabs stay in sync.
 
